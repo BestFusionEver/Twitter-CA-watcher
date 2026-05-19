@@ -41,7 +41,7 @@ def main() -> int:
     config = Config.from_file(config_path)
 
     if args.command == "notify-test":
-        build_notifier().send("X CA Watcher test bildirimi")
+        build_notifier().send("X CA Watcher test notification")
         print("notification test sent")
         return 0
 
@@ -89,14 +89,14 @@ def run_once(config: Config, dry_run: bool = False) -> int:
             state.mark_seen(post.id)
             if not hits:
                 continue
-            log_timing(f"CA yakalandi post_id={post.id} hit_count={len(hits)}")
+            log_timing(f"CA detected post_id={post.id} hit_count={len(hits)}")
             basedbot.send_hits(hits)
             message = format_alert(username=username, post=post, hits=hits)
             if dry_run:
                 print(message)
             else:
                 notifier.send(message)
-                log_timing(f"Bildirim gonderildi post_id={post.id}")
+                log_timing(f"Alert sent post_id={post.id}")
 
     return 0
 
@@ -116,33 +116,33 @@ def stream(config: Config, config_path: Path, dry_run: bool = False) -> int:
     def add_account(username: str) -> str:
         clean = username.strip().lstrip("@")
         if not clean:
-            return "Kullanım: /add hesap_adi"
+            return "Usage: /add username"
         with account_lock:
             if clean.lower() in {account.lower() for account in config.accounts}:
-                return f"@{clean} zaten takipte."
+                return f"@{clean} is already watched."
             config.accounts.append(clean)
             config.save(config_path)
             client.sync_stream_rules(config.accounts)
-        return f"@{clean} eklendi."
+        return f"@{clean} added."
 
     def remove_account(username: str) -> str:
         clean = username.strip().lstrip("@")
         if not clean:
-            return "Kullanım: /remove hesap_adi"
+            return "Usage: /remove username"
         with account_lock:
             before = len(config.accounts)
             config.accounts[:] = [account for account in config.accounts if account.lower() != clean.lower()]
             if len(config.accounts) == before:
-                return f"@{clean} takip listesinde yok."
+                return f"@{clean} is not in the watch list."
             config.save(config_path)
             client.sync_stream_rules(config.accounts)
-        return f"@{clean} kaldırıldı."
+        return f"@{clean} removed."
 
     def list_accounts() -> str:
         with account_lock:
             if not config.accounts:
-                return "Takip listesi boş."
-            return "Takip edilenler:\n" + "\n".join(f"- @{account}" for account in config.accounts)
+                return "Watch list is empty."
+            return "Watched accounts:\n" + "\n".join(f"- @{account}" for account in config.accounts)
 
     TelegramCommandListener(
         on_add=add_account,
@@ -160,7 +160,7 @@ def stream(config: Config, config_path: Path, dry_run: bool = False) -> int:
         state.mark_seen(post.id)
         if not hits:
             continue
-        log_timing(f"CA yakalandi post_id={post.id} hit_count={len(hits)}")
+        log_timing(f"CA detected post_id={post.id} hit_count={len(hits)}")
         basedbot.send_hits(hits)
         username = post.author_username or "unknown"
         message = format_alert(username=username, post=post, hits=hits)
@@ -168,7 +168,7 @@ def stream(config: Config, config_path: Path, dry_run: bool = False) -> int:
             print(message)
         else:
             notifier.send(message)
-            log_timing(f"Bildirim gonderildi post_id={post.id}")
+            log_timing(f"Alert sent post_id={post.id}")
 
     return 0
 
@@ -185,15 +185,15 @@ def format_alert(username: str, post, hits) -> str:
         )
 
     lines = [
-        "CA bulundu",
-        f"Hesap: @{username}",
+        "CA detected",
+        f"Account: @{username}",
         f"Post: https://x.com/{post.author_username or username}/status/{post.id}",
         "",
-        "Adresler:",
+        "Addresses:",
     ]
     for hit in hits:
         lines.append(f"- {hit.address} ({hit.chain_hint}, {hit.confidence})")
-    lines.extend(["", "Metin:", _trim(post.text, 700)])
+    lines.extend(["", "Text:", _trim(post.text, 700)])
     return "\n".join(lines)
 
 

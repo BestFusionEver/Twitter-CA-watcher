@@ -1,29 +1,33 @@
 # X CA Watcher
 
-Seçtiğiniz X hesaplarının postlarını ve mümkün olduğunda etkileşimlerini izleyip metin içinde token/kontrat adresi yakalayan bot iskeleti.
+A lightweight watcher bot that monitors selected X accounts, detects possible token/contract addresses in posts, sends alerts, and can optionally forward detected addresses to Telegram BasedBot.
 
-## Ne yapar?
+## Features
 
-- X API v2 ile seçili hesapların son postlarını çeker.
-- İsteğe bağlı olarak hesapların beğendiği postları da kontrol etmeyi dener.
-- Tweet/post metninde olası kontrat adreslerini yakalar:
+- Fetches recent posts from selected X accounts with X API v2.
+- Can optionally try to inspect liked posts when your X API access allows it.
+- Detects possible contract/token addresses in post text:
   - EVM: `0x...`
-  - Solana/Base58 benzeri adresler
-  - Sui/Aptos tarzı `0x...::module::name` asset idleri
-- Aynı postu tekrar bildirmemek için SQLite state tutar.
-- Telegram veya Discord webhook ile bildirim gönderir.
+  - Solana/Base58-like addresses
+  - Sui/Aptos-style `0x...::module::name` asset ids
+- Stores seen posts in SQLite to avoid duplicate alerts.
+- Sends alerts through Telegram or Discord webhook.
+- Supports Telegram commands to manage watched accounts while the stream is running.
+- Optional BasedBot forwarding through your own Telegram user session.
 
-> Not: X API erişimleri plan/tier ve yetki kapsamına göre değişebilir. Bu bot resmi X API endpointleriyle tasarlandı; beğeni/etkileşim endpointleri hesabınızın yetkilerine bağlı olarak kısıtlı olabilir.
+> Note: X API access depends on your plan, tier, and permissions. This bot is built around official X API endpoints; liked-post and interaction endpoints may be unavailable on some accounts or plans.
 
-## Kurulum
+## Setup
 
-Servis kurmadan denemek için:
+For a local trial without installing a service:
 
 ```bash
 ./trial.sh
 ```
 
-Sonra `.env` ve `config.json` dosyalarını doldurun.
+Then fill `.env` and `config.json`.
+
+Manual setup:
 
 ```bash
 python3 -m venv .venv
@@ -33,76 +37,76 @@ cp .env.example .env
 cp config.example.json config.json
 ```
 
-`.env` içine en azından şunu girin:
+At minimum, set:
 
 ```bash
 X_BEARER_TOKEN=...
 ```
 
-Bildirim için Telegram veya Discord ekleyin:
+For Telegram alerts:
 
 ```bash
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
 ```
 
-veya:
+Or use Discord:
 
 ```bash
 DISCORD_WEBHOOK_URL=...
 ```
 
-## Çalıştırma
+## Usage
 
-Tek seferlik kontrol:
+One-time check:
 
 ```bash
 python -m x_ca_watcher run --config config.json
 ```
 
-Sürekli izleme:
+Polling mode:
 
 ```bash
 python -m x_ca_watcher watch --config config.json --interval 120
 ```
 
-Anlık bildirime en yakın mod:
+Lowest-latency mode:
 
 ```bash
 python -m x_ca_watcher stream --config config.json
 ```
 
-`stream` modu X Filtered Stream kurallarını seçtiğiniz hesaplara göre ayarlar ve yeni postları bağlantı açık kaldığı sürece yakalar. Beğeniler gibi bazı etkileşimler stream ile gelmeyebilir; onlar için `watch` polling modu gerekir.
+`stream` configures X Filtered Stream rules for the selected accounts and listens while the connection is open. Some interactions, such as likes, may not arrive through stream; use `watch` polling for those cases.
 
-Stream çalışırken Telegram'dan takip listesi yönetimi:
+Telegram account management while stream is running:
 
 ```text
-/add hesap_adi
-/remove hesap_adi
+/add username
+/remove username
 /list
 ```
 
-Komutlar sadece `.env` içindeki `TELEGRAM_CHAT_ID` sahibinden kabul edilir.
+Commands are accepted only from the `TELEGRAM_CHAT_ID` configured in `.env`.
 
-Bildirim göndermeden deneme:
+Dry-run without sending alerts:
 
 ```bash
 python -m x_ca_watcher run --config config.json --dry-run
 ```
 
-Telegram/Discord bildirimi test:
+Telegram/Discord alert test:
 
 ```bash
 python -m x_ca_watcher notify-test --config config.json
 ```
 
-CA yakalama ve bildirim gönderme zamanlarını loglamak için `TIMING_LOGS=1` kullanılır. Kapatmak için `.env` içinde `TIMING_LOGS=0` yazın.
+Timing logs are enabled with `TIMING_LOGS=1`. Disable them with `TIMING_LOGS=0`.
 
-Daha kısa bildirim için `.env` içinde `ALERT_COMPACT=1` kullanın.
+Use compact alerts with `ALERT_COMPACT=1`.
 
-## BasedBot otomatik gönderim
+## BasedBot Forwarding
 
-Telegram bot tokenı başka bir Telegram botuna mesaj atamaz. BasedBot'a otomatik CA göndermek için kendi Telegram hesabınızla MTProto session açılır.
+Telegram bot tokens cannot message other Telegram bots. To automatically forward detected CA values to BasedBot, this project opens an MTProto session with your own Telegram user account.
 
 `.env`:
 
@@ -114,23 +118,23 @@ TELEGRAM_API_ID=...
 TELEGRAM_API_HASH=...
 ```
 
-İlk giriş:
+First login:
 
 ```bash
 python -m x_ca_watcher basedbot-login
 ```
 
-Sonra stream:
+Then run stream:
 
 ```bash
 python -m x_ca_watcher stream --config config.json
 ```
 
-BasedBot tarafında Quick Buy ve alım miktarı önceden küçük bir değerle ayarlanmış olmalıdır.
+Before enabling this, configure BasedBot Quick Buy with a small amount and the wallet/chain settings you want.
 
 ## Config
 
-`config.json` içinde izlenecek hesapları kullanıcı adıyla yazın:
+Write watched accounts by username in `config.json`:
 
 ```json
 {
@@ -141,7 +145,7 @@ BasedBot tarafında Quick Buy ve alım miktarı önceden küçük bir değerle a
 }
 ```
 
-`include_likes: true` yaptığınızda bot `GET /2/users/:id/liked_tweets` endpointini de dener. Bu endpoint her X API planında kullanılamayabilir.
+When `include_likes` is `true`, the bot also tries `GET /2/users/:id/liked_tweets`. This endpoint may not be available on every X API plan.
 
 ## Test
 
@@ -151,4 +155,4 @@ python -m unittest discover -s tests
 
 ## VPS
 
-Ubuntu VPS kurulumu için [DEPLOY.md](DEPLOY.md) dosyasındaki systemd rehberini kullanın. Başlangıç için 1 vCPU / 1 GB RAM yeterli; daha çok hesap ve daha kısa kontrol aralığı için 2 vCPU / 2 GB RAM önerilir.
+For Ubuntu VPS deployment, use the systemd guide in [DEPLOY.md](DEPLOY.md). A small 1 vCPU / 1 GB RAM instance is enough for basic use; use 2 vCPU / 2 GB RAM or higher for more accounts and shorter polling intervals.

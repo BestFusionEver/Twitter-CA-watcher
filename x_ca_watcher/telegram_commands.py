@@ -62,10 +62,10 @@ class TelegramCommandListener:
             return self.on_list()
         if command in {"/help", "/start"}:
             return (
-                "Komutlar:\n"
-                "/add hesap_adi - takip listesine ekle\n"
-                "/remove hesap_adi - takipten çıkar\n"
-                "/list - takip listesini göster"
+                "Commands:\n"
+                "/add username - add account to watch list\n"
+                "/remove username - remove account from watch list\n"
+                "/list - show watch list"
             )
         return None
 

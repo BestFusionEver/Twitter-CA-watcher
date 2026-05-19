@@ -64,14 +64,14 @@ class BasedBotSender:
         try:
             for address in addresses:
                 await client.send_message(self.username, address)
-                log_timing(f"BasedBot'a gonderildi address={address}")
+                log_timing(f"Sent to BasedBot address={address}")
         finally:
             await client.disconnect()
 
     async def _send_with_client(self, addresses: list[str]) -> None:
         for address in addresses:
             await self._client.send_message(self._entity or self.username, address)
-            log_timing(f"BasedBot'a gonderildi address={address}")
+            log_timing(f"Sent to BasedBot address={address}")
 
     async def _new_client(self):
         if not self.api_id or not self.api_hash:
