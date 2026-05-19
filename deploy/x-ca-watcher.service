@@ -1,0 +1,23 @@
+[Unit]
+Description=X CA Watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/x-ca-watcher
+EnvironmentFile=/etc/x-ca-watcher.env
+ExecStart=/opt/x-ca-watcher/.venv/bin/python -m x_ca_watcher stream --config /etc/x-ca-watcher/config.json
+Restart=always
+RestartSec=10
+User=xwatcher
+Group=xwatcher
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/x-ca-watcher /etc/x-ca-watcher
+
+[Install]
+WantedBy=multi-user.target

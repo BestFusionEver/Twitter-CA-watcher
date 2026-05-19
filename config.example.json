@@ -1,0 +1,6 @@
+{
+  "accounts": ["xdevelopers"],
+  "include_likes": false,
+  "max_results_per_account": 10,
+  "state_db": "state/watcher.sqlite3"
+}
