@@ -150,27 +150,39 @@ def stream(config: Config, config_path: Path, dry_run: bool = False) -> int:
         on_list=list_accounts,
     ).start()
 
-    client.sync_stream_rules(config.accounts)
-    print("stream started for: " + ", ".join(f"@{account}" for account in config.accounts))
+    def sync_rules() -> None:
+        with account_lock:
+            client.sync_stream_rules(config.accounts)
+            print("stream started for: " + ", ".join(f"@{account}" for account in config.accounts), flush=True)
 
-    for post in client.filtered_stream():
-        if state.has_seen(post.id):
-            continue
-        hits = find_addresses(post.text)
-        state.mark_seen(post.id)
-        if not hits:
-            continue
-        log_timing(f"CA detected post_id={post.id} hit_count={len(hits)}")
-        basedbot.send_hits(hits)
-        username = post.author_username or "unknown"
-        message = format_alert(username=username, post=post, hits=hits)
-        if dry_run:
-            print(message)
-        else:
-            notifier.send(message)
-            log_timing(f"Alert sent post_id={post.id}")
+    sync_rules()
 
-    return 0
+    while True:
+        try:
+            for post in client.filtered_stream():
+                handle_stream_post(post, state, basedbot, notifier, dry_run)
+        except XClientError as exc:
+            print(f"stream disconnected: {exc}. Reconnecting in 10 seconds.", flush=True)
+            time.sleep(10)
+            sync_rules()
+
+
+def handle_stream_post(post, state: StateStore, basedbot: BasedBotSender, notifier, dry_run: bool) -> None:
+    if state.has_seen(post.id):
+        return
+    hits = find_addresses(post.text)
+    state.mark_seen(post.id)
+    if not hits:
+        return
+    log_timing(f"CA detected post_id={post.id} hit_count={len(hits)}")
+    basedbot.send_hits(hits)
+    username = post.author_username or "unknown"
+    message = format_alert(username=username, post=post, hits=hits)
+    if dry_run:
+        print(message)
+    else:
+        notifier.send(message)
+        log_timing(f"Alert sent post_id={post.id}")
 
 
 def format_alert(username: str, post, hits) -> str:
