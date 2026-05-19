@@ -77,7 +77,7 @@ class XClient:
         if delete_ids:
             self._request_json(
                 "/tweets/search/stream/rules",
-                method="DELETE",
+                method="POST",
                 body={"delete": {"ids": delete_ids}},
             )
 
